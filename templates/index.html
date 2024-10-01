@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rowebot Campaign Planner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Rowebot Campaign Planner</h1>
+    <form id="campaign-form">
+        <div class="form-group">
+            <label for="district">District Name:</label>
+            <input type="text" id="district" name="district" required>
+        </div>
+
+        <div class="form-group">
+            <label for="voters">Total Voters in District:</label>
+            <input type="number" id="voters" name="voters" required>
+        </div>
+
+        <div class="form-group">
+            <label for="vote-goal">Vote Goal (% needed to win):</label>
+            <input type="text" id="vote-goal" name="vote-goal" step="0.01" required>
+        </div>
+
+        <script>
+        const voteGoalInput = document.getElementById('vote-goal');
+
+        // On input, remove any non-numeric characters (except for the decimal point)
+        voteGoalInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^\d.]/g, '');  // Keep only digits and periods
+            e.target.value = value;  // Update the input with the raw number
+        });
+        
+        // On blur, format the value with a percentage sign
+        voteGoalInput.addEventListener('blur', function(e) {
+            let value = e.target.value;
+        
+            // If there's a valid number, add the percentage sign
+            if (!isNaN(value) && value.length > 0) {
+                e.target.value = value + '%';  // Append the percentage symbol
+            }
+        });
+        
+        // On focus, remove the percentage symbol so the user can edit
+        voteGoalInput.addEventListener('focus', function(e) {
+            let value = e.target.value.replace('%', '');  // Remove the percentage sign
+            e.target.value = value;  // Set the field value without the percentage symbol
+        });
+        </script>
+
+        <div class="form-group">
+            <label for="budget">Total Estimated Campaign Budget ($):</label>
+            <input type="text" id="budget" name="budget" required>
+        </div>
+
+        <script>
+            const budgetInput = document.getElementById('budget');
+        
+            // On input, strip formatting so the user can continue typing
+            budgetInput.addEventListener('input', function (e) {
+                // Strip non-numeric characters except for periods
+                let value = e.target.value.replace(/[^\d.]/g, '');
+                e.target.value = value;  // Update the input with just the digits for now
+            });
+        
+            // On blur, format the value with commas and dollar signs
+            budgetInput.addEventListener('blur', function (e) {
+                let value = e.target.value;
+                
+                // Parse the value as a float and format it with currency style
+                if (!isNaN(value) && value.length > 0) {
+                    value = parseFloat(value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                    e.target.value = value;  // Update the input field with formatted value
+                }
+            });
+        
+            // Optionally, on focus, remove the formatting again so the user can edit it
+            budgetInput.addEventListener('focus', function (e) {
+                let value = e.target.value.replace(/[^\d.]/g, '');  // Strip formatting for easy editing
+                e.target.value = value;
+            });
+        </script>
+
+        <div class="form-group">
+            <label for="issues">Key Issues (comma-separated):</label>
+            <input type="text" id="issues" name="issues" required>
+        </div>
+
+        <div class="form-group">
+            <label for="demographics">District Demographics (comma-separated, e.g., White: 50%, Black: 30%, etc.):</label>
+            <input type="text" id="demographics" name="demographics" required>
+        </div>
+
+        <button type="submit">Generate Campaign Plan</button>
+        <button type="button" id="clear-btn">Clear</button>
+    </form>
+
+    <div id="loading" style="display:none;">
+        <div class="spinner"></div>
+        <p>Building your campaign plan...</p>
+    </div>
+
+    <div id="result" style="display:none;">
+        <h2>Your First Draft Campaign Plan:</h2>
+        <p id="plan-text" style="white-space: pre-wrap;"></p>
+        <button id="copy-btn">Copy to Clipboard</button>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const form = $('#campaign-form');
+            const loading = $('#loading');
+            const result = $('#result');
+            const planText = $('#plan-text');
+            const clearBtn = $('#clear-btn');
+            const copyBtn = $('#copy-btn');
+
+            form.on('submit', function(e) {
+                e.preventDefault();
+                loading.show();
+                result.hide();
+
+                $.ajax({
+                    url: '/generate_campaign_plan',
+                    method: 'POST',
+                    data: form.serialize(),
+                    success: function(response) {
+                        loading.hide();
+                        if (response.success) {
+                            planText.html(response.plan);
+                            result.show();
+                        } else {
+                            alert('Error: ' + response.error);
+                        }
+                    },
+                    error: function() {
+                        loading.hide();
+                        alert('An error occurred. Please try again.');
+                    }
+                });
+            });
+
+            clearBtn.on('click', function() {
+                form[0].reset();
+                result.hide();
+            });
+
+            copyBtn.on('click', function() {
+                const tempTextArea = $('<textarea>');
+                $('body').append(tempTextArea);
+                tempTextArea.val(planText.text()).select();
+                document.execCommand('copy');
+                tempTextArea.remove();
+                alert('Campaign plan copied to clipboard!');
+            });
+        });
+    </script>
+</body>
+</html>
